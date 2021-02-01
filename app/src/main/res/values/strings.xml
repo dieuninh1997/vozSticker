@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">VozSticker</string>
+    <string name="configServer">https://api.imgur.com/a/album/</string>
+</resources>

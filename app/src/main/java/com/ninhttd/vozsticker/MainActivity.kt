@@ -1,14 +1,16 @@
 package com.ninhttd.vozsticker
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
-import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.bottomnavigation.BottomNavigationView.OnNavigationItemReselectedListener
+import com.google.gson.Gson
+import org.json.JSONObject
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -20,6 +22,8 @@ class MainActivity : AppCompatActivity() {
     private val recentFragment: Fragment = RecentFragment()
     private val settingFragment: Fragment = SettingFragment()
     var activeFragment: Fragment = recentFragment
+    var sharedPreferences: SharedPreferences? = null
+    var editor: SharedPreferences.Editor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,6 +36,10 @@ class MainActivity : AppCompatActivity() {
 
         val bottomNavigation: BottomNavigationView = findViewById(R.id.navigation)
         bottomNavigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener)
+
+        sharedPreferences = getSharedPreferences("MyPref", Context.MODE_PRIVATE);
+        editor = sharedPreferences?.edit();
+        loadImages()
     }
 
 
@@ -60,24 +68,25 @@ class MainActivity : AppCompatActivity() {
         //initiate the service
         val destinationService  = ServiceBuilder.buildService(ImageService::class.java)
        //https://api.imgur.com/3/album/PyAepyl?client_id=88c1a76b6435585
-        val requestCall =destinationService.getAll("PyAepyl", "88c1a76b6435585");
+        val requestCall =destinationService.getAlbum("PyAepyl", "88c1a76b6435585");
         //make network call asynchronously
-        requestCall?.enqueue(object : Callback<List<Image>> {
-            override fun onResponse(call: Call<List<Image>>, response: Response<List<Image>>) {
-                Log.d("Response", "onResponse: ${response.body()}")
-                if (response.isSuccessful){
-                    val imageList  = response.body()!!
-                    Log.d("Response", "imageList size : ${imageList.size}")
-//                    country_recycler.apply {
-//                        setHasFixedSize(true)
-//                        layoutManager = GridLayoutManager(this@MainActivity,2)
-//                        adapter = CountriesAdapter(response.body()!!)
-//                    }
-                }else{
+        requestCall?.enqueue(object : Callback<ImageEntity.Album> {
+            override fun onResponse(call: Call<ImageEntity.Album>, response: Response<ImageEntity.Album>) {
+                Log.d("Response", "onResponse: $response")
+
+                if (response.isSuccessful) {
+                    val data = response.body()!!
+                    Log.d("Response", "data : ${data.data.images}")
+                    editor?.putString("PyAepyl", data.data.images.joinToString())
+                    editor?.apply()
+                } else {
+                    Log.d("Response", "failed : ${response.message()}")
                     Toast.makeText(this@MainActivity, "Something went wrong ${response.message()}", Toast.LENGTH_SHORT).show()
                 }
             }
-            override fun onFailure(call: Call<List<Image>>, t: Throwable) {
+
+            override fun onFailure(call: Call<ImageEntity.Album>, t: Throwable) {
+                Log.d("Response", "onFailure : $t")
                 Toast.makeText(this@MainActivity, "Something went wrong $t", Toast.LENGTH_SHORT).show()
             }
         })
